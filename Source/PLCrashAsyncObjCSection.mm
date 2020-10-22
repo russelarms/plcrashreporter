@@ -28,6 +28,7 @@
 
 #include "PLCrashAsyncObjCSection.h"
 #include "PLCrashCompatConstants.h"
+#import "PLCrashMacros.h"
 
 #include <Foundation/Foundation.h>
 
@@ -1264,27 +1265,33 @@ static void pl_async_objc_find_method_call_callback (bool isClassMethod, plcrash
  * @return An error code.
  */
 plcrash_error_t plcrash_async_objc_find_method (plcrash_async_macho_t *image, plcrash_async_objc_cache_t *objcContext, pl_vm_address_t imp, plcrash_async_objc_found_method_cb callback, void *ctx) {
+    PLCR_LOG("134 plcrash_async_objc_find_method 0");
     struct pl_async_objc_find_method_search_context searchCtx = {
         .searchIMP = imp
     };
-
+    PLCR_LOG("134 plcrash_async_objc_find_method 1");
     plcrash_error_t err = plcrash_async_objc_parse(image, objcContext, pl_async_objc_find_method_search_callback, &searchCtx);
+  PLCR_LOG("134 plcrash_async_objc_find_method 2, %d", err);
     if (err != PLCRASH_ESUCCESS) {
+        PLCR_LOG("134 plcrash_async_objc_find_method 3 error");
         /* Don't log an error if ObjC data was simply not found */
         if (err != PLCRASH_ENOTFOUND)
+          
+          PLCR_LOG("134 pl_async_objc_parse of %p (%s) failure %d", image, PLCF_DEBUG_IMAGE_NAME(image), err);
             PLCF_DEBUG("pl_async_objc_parse of %p (%s) failure %d", image, PLCF_DEBUG_IMAGE_NAME(image), err);
         return err;
     }
+    PLCR_LOG("134 plcrash_async_objc_find_method 4");
     
     if (searchCtx.bestIMP == 0)
         return PLCRASH_ENOTFOUND;
-    
+  PLCR_LOG("134 plcrash_async_objc_find_method 5");
     struct pl_async_objc_find_method_call_context callCtx = {
         .searchIMP = searchCtx.bestIMP,
         .outerCallback = callback,
         .outerCallbackCtx = ctx
     };
-    
+  PLCR_LOG("134 plcrash_async_objc_find_method 6");
     return plcrash_async_objc_parse(image, objcContext, pl_async_objc_find_method_call_callback, &callCtx);
 }
 

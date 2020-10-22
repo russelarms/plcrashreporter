@@ -112,7 +112,7 @@ plcrash_error_t plcrash_async_find_symbol (plcrash_async_macho_t *image,
     
   if (strategy & PLCRASH_ASYNC_SYMBOL_STRATEGY_OBJC){
     PLCR_LOG("&PLCRASH_ASYNC_SYMBOL_STRATEGY_OBJC");
-//    objcErr = plcrash_async_objc_find_method(image, &cache->objc_cache, pc, objc_symbol_callback, &lookup_ctx);
+    objcErr = plcrash_async_objc_find_method(image, &cache->objc_cache, pc, objc_symbol_callback, &lookup_ctx);
   }
   
     if (machoErr != PLCRASH_ESUCCESS && objcErr != PLCRASH_ESUCCESS) {
