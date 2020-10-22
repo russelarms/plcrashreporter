@@ -1032,121 +1032,139 @@ cleanup:
  */
 template<typename class_t, typename class_ro_t, typename class_rw_t, typename category_t, typename machine_ptr_t>
 static plcrash_error_t pl_async_objc_parse_from_data_section (plcrash_async_macho_t *image, plcrash_async_objc_cache_t *objcContext, plcrash_async_objc_found_method_cb callback, void *ctx) {
-    plcrash_error_t err;
   
-    PLCR_LOG("135 pl_async_objc_parse_from_data_section");
+  @try {
+    plcrash_error_t err;
+    
+    PLCR_LOG("136 pl_async_objc_parse_from_data_section");
     
     /* Map memory objects. */
     err = map_sections(image, objcContext);
-    PLCR_LOG("135 pl_async_objc_parse_from_data_section 1, %d", err);
+    PLCR_LOG("136 pl_async_objc_parse_from_data_section 1, %d", err);
     if (err != PLCRASH_ESUCCESS) {
-        /* Don't log an error if ObjC data was simply not found */
+      /* Don't log an error if ObjC data was simply not found */
+      PLCR_LOG("136 pl_async_objc_parse_from_data_section not esuccess, return");
       if (err != PLCRASH_ENOTFOUND){
-        PLCR_LOG("135 pl_async_objc_parse_from_data_section not not found, %d", err);
+        PLCR_LOG("136 pl_async_objc_parse_from_data_section not not found, %d", err);
         PLCF_DEBUG("Unable to map relevant sections in %s for ObjC2 class parsing, error %d", PLCF_DEBUG_IMAGE_NAME(image), err);
       }
-        return err;
+      return err;
     }
     
     /* Get a pointer out of the mapped class list. */
     machine_ptr_t *classPtrs = (machine_ptr_t *) plcrash_async_mobject_remap_address(&objcContext->classMobj, objcContext->classMobj.task_address, 0, objcContext->classMobj.length);
-    PLCR_LOG("135 pl_async_objc_parse_from_data_section Get a pointer out of the mapped class list.");
+    PLCR_LOG("136 pl_async_objc_parse_from_data_section Get a pointer out of the mapped class list.");
     if (classPtrs == NULL) {
-        PLCF_DEBUG("plcrash_async_mobject_remap_address in __objc_classlist for pointer 0x%llx returned NULL", (long long)objcContext->classMobj.address);
-        PLCR_LOG("135 pl_async_objc_parse_from_data_section PLCRASH_EINVALID_DATA");
-        return PLCRASH_EINVALID_DATA;
+      PLCF_DEBUG("plcrash_async_mobject_remap_address in __objc_classlist for pointer 0x%llx returned NULL", (long long)objcContext->classMobj.address);
+      PLCR_LOG("136 pl_async_objc_parse_from_data_section PLCRASH_EINVALID_DATA");
+      return PLCRASH_EINVALID_DATA;
     }
     
     /* Figure out how many classes are in the class list based on its length and
      * the size of a pointer in the image. */
     pl_vm_size_t classCount = objcContext->classMobj.length / sizeof(machine_ptr_t);
-    PLCR_LOG("135 pl_async_objc_parse_from_data_section classCount, %d", classCount);
+    PLCR_LOG("136 pl_async_objc_parse_from_data_section classCount, %llu", classCount);
     
     /* Iterate over all classes. */
     for(unsigned i = 0; i < classCount; i++) {
-        /* Read the class structure */
-        pl_vm_address_t ptr = (pl_vm_address_t) classPtrs[i];
-        class_t *classPtr = (class_t *) plcrash_async_mobject_remap_address(&objcContext->objcDataMobj, ptr, 0, sizeof(*classPtr));
-        if (classPtr == NULL) {
-            classPtr = (class_t *) plcrash_async_mobject_remap_address(&objcContext->dataMobj, ptr, 0, sizeof(*classPtr));
+      //        PLCR_LOG("137 pl_async_objc_parse_from_data_section class iteration, %d", i);
+      /* Read the class structure */
+      pl_vm_address_t ptr = (pl_vm_address_t) classPtrs[i];
+      
+      class_t *classPtr = (class_t *) plcrash_async_mobject_remap_address(&objcContext->objcDataMobj, ptr, 0, sizeof(*classPtr));
+      if (classPtr == NULL) {
+        //            PLCR_LOG("137 pl_async_objc_parse_from_data_section class ptr is NULL");
+        classPtr = (class_t *) plcrash_async_mobject_remap_address(&objcContext->dataMobj, ptr, 0, sizeof(*classPtr));
+      }
+      if (classPtr == NULL) {
+        //          PLCR_LOG("137 pl_async_objc_parse_from_data_section class ptr is NULL2");
+        PLCF_DEBUG("plcrash_async_mobject_remap_address in __objc_data and __data for pointer 0x%llx returned NULL", (long long)ptr);
+        return PLCRASH_EINVALID_DATA;
+      }
+      
+      /* Parse the class. */
+      err = pl_async_objc_parse_objc2_class_methods<class_t, class_ro_t, class_rw_t, machine_ptr_t>(image, objcContext, classPtr, false, callback, ctx);
+      //        PLCR_LOG("137 pl_async_objc_parse_from_data_section parse the class, %d", err);
+      if (err != PLCRASH_ESUCCESS) {
+        /* Skip unrealized classes; they'll never appear in a live backtrace. */
+        //            PLCR_LOG("137 pl_async_objc_parse_from_data_section skip unrealized classes");
+        if (err == PLCRASH_ENOTFOUND) {
+          //                PLCR_LOG("137 pl_async_objc_parse_from_data_section error = not found");
+          /* We should reset the error variable to avoid return it from the function. */
+          err = PLCRASH_ESUCCESS;
+          continue;
         }
-        if (classPtr == NULL) {
-            PLCF_DEBUG("plcrash_async_mobject_remap_address in __objc_data and __data for pointer 0x%llx returned NULL", (long long)ptr);
-            return PLCRASH_EINVALID_DATA;
-        }
-        
-        /* Parse the class. */
-        err = pl_async_objc_parse_objc2_class_methods<class_t, class_ro_t, class_rw_t, machine_ptr_t>(image, objcContext, classPtr, false, callback, ctx);
-        if (err != PLCRASH_ESUCCESS) {
-            /* Skip unrealized classes; they'll never appear in a live backtrace. */
-            if (err == PLCRASH_ENOTFOUND) {
-                /* We should reset the error variable to avoid return it from the function. */
-                err = PLCRASH_ESUCCESS;
-                continue;
-            }
-            PLCF_DEBUG("pl_async_objc_parse_objc2_class error %d while parsing class", err);
-            return err;
-        }
-        
-        /* Read an architecture-appropriate class structure for the metaclass. */
-        pl_vm_address_t isa = plcrash_async_objc_isa_pointer((pl_vm_address_t) image->byteorder->swap(classPtr->isa));
-        class_t *metaclass = (class_t *) plcrash_async_mobject_remap_address(&objcContext->objcDataMobj, isa, 0, sizeof(*metaclass));
-        if (metaclass == NULL) {
-            metaclass = (class_t *) plcrash_async_mobject_remap_address(&objcContext->dataMobj, isa, 0, sizeof(*metaclass));
-        }
-        if (metaclass == NULL) {
-            PLCF_DEBUG("plcrash_async_mobject_remap_address in __objc_data and __data for pointer 0x%llx returned NULL", (long long)isa);
-            return PLCRASH_EINVALID_DATA;
-        }
-
-        /* Parse the metaclass. */
-        err = pl_async_objc_parse_objc2_class_methods<class_t, class_ro_t, class_rw_t, machine_ptr_t>(image, objcContext, metaclass, true, callback, ctx);
-        if (err != PLCRASH_ESUCCESS) {
-            PLCF_DEBUG("pl_async_objc_parse_objc2_class_methods error %d while parsing metaclass", err);
-            return err;
-        }
+        PLCF_DEBUG("pl_async_objc_parse_objc2_class error %d while parsing class", err);
+        return err;
+      }
+      
+      /* Read an architecture-appropriate class structure for the metaclass. */
+      pl_vm_address_t isa = plcrash_async_objc_isa_pointer((pl_vm_address_t) image->byteorder->swap(classPtr->isa));
+      class_t *metaclass = (class_t *) plcrash_async_mobject_remap_address(&objcContext->objcDataMobj, isa, 0, sizeof(*metaclass));
+      //        PLCR_LOG("137 pl_async_objc_parse_from_data_section Read an architecture-appropriate class structure for the metaclass");
+      if (metaclass == NULL) {
+        //            PLCR_LOG("137 pl_async_objc_parse_from_data_section metaclass is Null");
+        metaclass = (class_t *) plcrash_async_mobject_remap_address(&objcContext->dataMobj, isa, 0, sizeof(*metaclass));
+      }
+      if (metaclass == NULL) {
+        //            PLCR_LOG("137 pl_async_objc_parse_from_data_section metaclass is Null, invalid data");
+        PLCF_DEBUG("plcrash_async_mobject_remap_address in __objc_data and __data for pointer 0x%llx returned NULL", (long long)isa);
+        return PLCRASH_EINVALID_DATA;
+      }
+      
+      /* Parse the metaclass. */
+      err = pl_async_objc_parse_objc2_class_methods<class_t, class_ro_t, class_rw_t, machine_ptr_t>(image, objcContext, metaclass, true, callback, ctx);
+      //        PLCR_LOG("137 pl_async_objc_parse_from_data_section parse the metaclass, %d", err);
+      if (err != PLCRASH_ESUCCESS) {
+        //            PLCR_LOG("137 pl_async_objc_parse_from_data_section parse the metaclass error");
+        PLCF_DEBUG("pl_async_objc_parse_objc2_class_methods error %d while parsing metaclass", err);
+        return err;
+      }
     }
     
     /* Get a pointer out of the mapped category list. */
     machine_ptr_t *catPtrs = (machine_ptr_t *) plcrash_async_mobject_remap_address(&objcContext->catMobj, objcContext->catMobj.task_address, 0, objcContext->catMobj.length);
-  PLCR_LOG("135 pl_async_objc_parse_from_data_section Get a pointer out of the mapped category list.");
+    PLCR_LOG("136 pl_async_objc_parse_from_data_section Get a pointer out of the mapped category list.");
     if (catPtrs == NULL) {
-        PLCF_DEBUG("plcrash_async_mobject_remap_address in __objc_catlist for pointer 0x%llx returned NULL", (long long)objcContext->catMobj.address);
-        return PLCRASH_EINVALID_DATA;
+      PLCF_DEBUG("plcrash_async_mobject_remap_address in __objc_catlist for pointer 0x%llx returned NULL", (long long)objcContext->catMobj.address);
+      return PLCRASH_EINVALID_DATA;
     }
     
     /* Figure out how many categories are in the category list based on its length and the size of a pointer in the image. */
     pl_vm_size_t catCount = objcContext->catMobj.length / sizeof(*catPtrs);
-  
-    PLCR_LOG("135 pl_async_objc_parse_from_data_section catCount, %d", catCount);
+    
+    PLCR_LOG("136 pl_async_objc_parse_from_data_section catCount, %llu", catCount);
     
     /* Iterate over all classes. */
     for(unsigned i = 0; i < catCount; i++) {
-        /* Read a category pointer at the current index from the appropriate pointer. */
-        pl_vm_address_t ptr = (pl_vm_address_t) image->byteorder->swap(catPtrs[i]);
+      /* Read a category pointer at the current index from the appropriate pointer. */
+      pl_vm_address_t ptr = (pl_vm_address_t) image->byteorder->swap(catPtrs[i]);
+      
+      /* Read the category structure. */
+      category_t *category = (category_t *) plcrash_async_mobject_remap_address(&objcContext->objcConstMobj, ptr, 0, sizeof(*category));
+      if (category == NULL) {
+        PLCF_DEBUG("plcrash_async_mobject_remap_address in __objc_const for pointer 0x%llx returned NULL", (long long)ptr);
+        return PLCRASH_EINVALID_DATA;
+      }
+      
+      /* Parse the category. */
+      err = pl_async_objc_parse_objc2_category_methods<category_t, class_t, class_ro_t, class_rw_t, machine_ptr_t>(image, objcContext, category, callback, ctx);
+      if (err != PLCRASH_ESUCCESS) {
+        /* Skip unrealized classes; they'll never appear in a live backtrace. */
+        if (err == PLCRASH_ENOTFOUND)
+          continue;
         
-        /* Read the category structure. */
-        category_t *category = (category_t *) plcrash_async_mobject_remap_address(&objcContext->objcConstMobj, ptr, 0, sizeof(*category));
-        if (category == NULL) {
-            PLCF_DEBUG("plcrash_async_mobject_remap_address in __objc_const for pointer 0x%llx returned NULL", (long long)ptr);
-            return PLCRASH_EINVALID_DATA;
-        }
-
-        /* Parse the category. */
-        err = pl_async_objc_parse_objc2_category_methods<category_t, class_t, class_ro_t, class_rw_t, machine_ptr_t>(image, objcContext, category, callback, ctx);
-        if (err != PLCRASH_ESUCCESS) {
-            /* Skip unrealized classes; they'll never appear in a live backtrace. */
-            if (err == PLCRASH_ENOTFOUND)
-                continue;
-
-            PLCF_DEBUG("pl_async_objc_parse_objc2_class error %d while parsing class", err);
-            return err;
-        }
+        PLCF_DEBUG("pl_async_objc_parse_objc2_class error %d while parsing class", err);
+        return err;
+      }
     }
-  
-    PLCR_LOG("135 pl_async_objc_parse_from_data_section end, %d", err);
+    
+    PLCR_LOG("136 pl_async_objc_parse_from_data_section end, %d", err);
     
     return err;
+  } @catch (NSException *exception) {
+    PLCR_LOG("136 pl_async_objc_parse_from_data_section");
+  }
 }
 
 /**
