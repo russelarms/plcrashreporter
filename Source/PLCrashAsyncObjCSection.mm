@@ -1033,26 +1033,34 @@ cleanup:
 template<typename class_t, typename class_ro_t, typename class_rw_t, typename category_t, typename machine_ptr_t>
 static plcrash_error_t pl_async_objc_parse_from_data_section (plcrash_async_macho_t *image, plcrash_async_objc_cache_t *objcContext, plcrash_async_objc_found_method_cb callback, void *ctx) {
     plcrash_error_t err;
+  
+    PLCR_LOG("135 pl_async_objc_parse_from_data_section");
     
     /* Map memory objects. */
     err = map_sections(image, objcContext);
+    PLCR_LOG("135 pl_async_objc_parse_from_data_section 1, %d", err);
     if (err != PLCRASH_ESUCCESS) {
         /* Don't log an error if ObjC data was simply not found */
-        if (err != PLCRASH_ENOTFOUND)
-            PLCF_DEBUG("Unable to map relevant sections in %s for ObjC2 class parsing, error %d", PLCF_DEBUG_IMAGE_NAME(image), err);
+      if (err != PLCRASH_ENOTFOUND){
+        PLCR_LOG("135 pl_async_objc_parse_from_data_section not not found, %d", err);
+        PLCF_DEBUG("Unable to map relevant sections in %s for ObjC2 class parsing, error %d", PLCF_DEBUG_IMAGE_NAME(image), err);
+      }
         return err;
     }
     
     /* Get a pointer out of the mapped class list. */
     machine_ptr_t *classPtrs = (machine_ptr_t *) plcrash_async_mobject_remap_address(&objcContext->classMobj, objcContext->classMobj.task_address, 0, objcContext->classMobj.length);
+    PLCR_LOG("135 pl_async_objc_parse_from_data_section Get a pointer out of the mapped class list.");
     if (classPtrs == NULL) {
         PLCF_DEBUG("plcrash_async_mobject_remap_address in __objc_classlist for pointer 0x%llx returned NULL", (long long)objcContext->classMobj.address);
+        PLCR_LOG("135 pl_async_objc_parse_from_data_section PLCRASH_EINVALID_DATA");
         return PLCRASH_EINVALID_DATA;
     }
     
     /* Figure out how many classes are in the class list based on its length and
      * the size of a pointer in the image. */
     pl_vm_size_t classCount = objcContext->classMobj.length / sizeof(machine_ptr_t);
+    PLCR_LOG("135 pl_async_objc_parse_from_data_section classCount, %d", classCount);
     
     /* Iterate over all classes. */
     for(unsigned i = 0; i < classCount; i++) {
@@ -1101,6 +1109,7 @@ static plcrash_error_t pl_async_objc_parse_from_data_section (plcrash_async_mach
     
     /* Get a pointer out of the mapped category list. */
     machine_ptr_t *catPtrs = (machine_ptr_t *) plcrash_async_mobject_remap_address(&objcContext->catMobj, objcContext->catMobj.task_address, 0, objcContext->catMobj.length);
+  PLCR_LOG("135 pl_async_objc_parse_from_data_section Get a pointer out of the mapped category list.");
     if (catPtrs == NULL) {
         PLCF_DEBUG("plcrash_async_mobject_remap_address in __objc_catlist for pointer 0x%llx returned NULL", (long long)objcContext->catMobj.address);
         return PLCRASH_EINVALID_DATA;
@@ -1108,6 +1117,8 @@ static plcrash_error_t pl_async_objc_parse_from_data_section (plcrash_async_mach
     
     /* Figure out how many categories are in the category list based on its length and the size of a pointer in the image. */
     pl_vm_size_t catCount = objcContext->catMobj.length / sizeof(*catPtrs);
+  
+    PLCR_LOG("135 pl_async_objc_parse_from_data_section catCount, %d", catCount);
     
     /* Iterate over all classes. */
     for(unsigned i = 0; i < catCount; i++) {
@@ -1132,6 +1143,8 @@ static plcrash_error_t pl_async_objc_parse_from_data_section (plcrash_async_mach
             return err;
         }
     }
+  
+    PLCR_LOG("135 pl_async_objc_parse_from_data_section end, %d", err);
     
     return err;
 }
@@ -1184,26 +1197,37 @@ void plcrash_async_objc_cache_free (plcrash_async_objc_cache_t *cache) {
  */
 static plcrash_error_t plcrash_async_objc_parse (plcrash_async_macho_t *image, plcrash_async_objc_cache_t *cache, plcrash_async_objc_found_method_cb callback, void *ctx) {
     plcrash_error_t err;
+    PLCR_LOG("135 plcrash_async_objc_parse");
     
-    if (cache == NULL)
-        return PLCRASH_EACCESS;
+  if (cache == NULL){
+    PLCR_LOG("135 plcrash_async_objc_parse cache == null, eaccess");
+    return PLCRASH_EACCESS;
+  }
+        
    
     if (!cache->gotObjC2Info) {
         /* Try ObjC1 data. */
+        PLCR_LOG("135 plcrash_async_objc_parse try objc1 data info");
         err = pl_async_objc_parse_from_module_info(image, callback, ctx);
     } else {
+        PLCR_LOG("135 plcrash_async_objc_parse enotfound");
         /* If it couldn't be found before, don't even bother to try again. */
         err = PLCRASH_ENOTFOUND;
     }
     
     /* If there wasn't any, try ObjC2 data. */
     if (err == PLCRASH_ENOTFOUND) {
-        if (image->m64)
-            err = pl_async_objc_parse_from_data_section<pl_objc2_class_64, pl_objc2_class_data_ro_64, pl_objc2_class_data_rw_64, pl_objc2_category_64, uint64_t>(image, cache, callback, ctx);
-        else
-            err = pl_async_objc_parse_from_data_section<pl_objc2_class_32, pl_objc2_class_data_ro_32, pl_objc2_class_data_rw_32, pl_objc2_category_32, uint32_t>(image, cache, callback, ctx);
-
+      PLCR_LOG("135 plcrash_async_objc_parse enotfound2");
+      if (image->m64){
+        PLCR_LOG("135 plcrash_async_objc_parse m64");
+        err = pl_async_objc_parse_from_data_section<pl_objc2_class_64, pl_objc2_class_data_ro_64, pl_objc2_class_data_rw_64, pl_objc2_category_64, uint64_t>(image, cache, callback, ctx);
+      } else {
+        PLCR_LOG("135 plcrash_async_objc_parse not m64");
+        err = pl_async_objc_parse_from_data_section<pl_objc2_class_32, pl_objc2_class_data_ro_32, pl_objc2_class_data_rw_32, pl_objc2_category_32, uint32_t>(image, cache, callback, ctx);
+      }
+            
         if (err == PLCRASH_ESUCCESS) {
+          PLCR_LOG("135 plcrash_async_objc_parse PLCRASH_ESUCCESS");
             /* ObjC2 info successfully obtained, note that so we can stop trying ObjC1 next time around. */
             cache->gotObjC2Info = true;
         }
@@ -1275,11 +1299,11 @@ plcrash_error_t plcrash_async_objc_find_method (plcrash_async_macho_t *image, pl
     if (err != PLCRASH_ESUCCESS) {
         PLCR_LOG("134 plcrash_async_objc_find_method 3 error");
         /* Don't log an error if ObjC data was simply not found */
-        if (err != PLCRASH_ENOTFOUND)
-          
-          PLCR_LOG("134 pl_async_objc_parse of %p (%s) failure %d", image, PLCF_DEBUG_IMAGE_NAME(image), err);
-            PLCF_DEBUG("pl_async_objc_parse of %p (%s) failure %d", image, PLCF_DEBUG_IMAGE_NAME(image), err);
-        return err;
+      if (err != PLCRASH_ENOTFOUND){
+        PLCR_LOG("134 pl_async_objc_parse of %p (%s) failure %d", image, PLCF_DEBUG_IMAGE_NAME(image), err);
+        PLCF_DEBUG("pl_async_objc_parse of %p (%s) failure %d", image, PLCF_DEBUG_IMAGE_NAME(image), err);
+      }
+      return err;
     }
     PLCR_LOG("134 plcrash_async_objc_find_method 4");
     
