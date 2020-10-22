@@ -1067,7 +1067,7 @@ static plcrash_error_t pl_async_objc_parse_from_data_section (plcrash_async_mach
     
     /* Iterate over all classes. */
     for(unsigned i = 0; i < classCount; i++) {
-      //        PLCR_LOG("137 pl_async_objc_parse_from_data_section class iteration, %d", i);
+      PLCR_LOG("137 pl_async_objc_parse_from_data_section class iteration, %d", i);
       /* Read the class structure */
       pl_vm_address_t ptr = (pl_vm_address_t) classPtrs[i];
       
