@@ -1073,23 +1073,23 @@ static plcrash_error_t pl_async_objc_parse_from_data_section (plcrash_async_mach
       
       class_t *classPtr = (class_t *) plcrash_async_mobject_remap_address(&objcContext->objcDataMobj, ptr, 0, sizeof(*classPtr));
       if (classPtr == NULL) {
-        //            PLCR_LOG("137 pl_async_objc_parse_from_data_section class ptr is NULL");
+                    PLCR_LOG("137 pl_async_objc_parse_from_data_section class ptr is NULL");
         classPtr = (class_t *) plcrash_async_mobject_remap_address(&objcContext->dataMobj, ptr, 0, sizeof(*classPtr));
       }
       if (classPtr == NULL) {
-        //          PLCR_LOG("137 pl_async_objc_parse_from_data_section class ptr is NULL2");
+                  PLCR_LOG("137 pl_async_objc_parse_from_data_section class ptr is NULL2");
         PLCF_DEBUG("plcrash_async_mobject_remap_address in __objc_data and __data for pointer 0x%llx returned NULL", (long long)ptr);
         return PLCRASH_EINVALID_DATA;
       }
       
       /* Parse the class. */
       err = pl_async_objc_parse_objc2_class_methods<class_t, class_ro_t, class_rw_t, machine_ptr_t>(image, objcContext, classPtr, false, callback, ctx);
-      //        PLCR_LOG("137 pl_async_objc_parse_from_data_section parse the class, %d", err);
+              PLCR_LOG("137 pl_async_objc_parse_from_data_section parse the class, %d", err);
       if (err != PLCRASH_ESUCCESS) {
         /* Skip unrealized classes; they'll never appear in a live backtrace. */
-        //            PLCR_LOG("137 pl_async_objc_parse_from_data_section skip unrealized classes");
+                    PLCR_LOG("137 pl_async_objc_parse_from_data_section skip unrealized classes");
         if (err == PLCRASH_ENOTFOUND) {
-          //                PLCR_LOG("137 pl_async_objc_parse_from_data_section error = not found");
+                          PLCR_LOG("137 pl_async_objc_parse_from_data_section error = not found");
           /* We should reset the error variable to avoid return it from the function. */
           err = PLCRASH_ESUCCESS;
           continue;
@@ -1101,22 +1101,22 @@ static plcrash_error_t pl_async_objc_parse_from_data_section (plcrash_async_mach
       /* Read an architecture-appropriate class structure for the metaclass. */
       pl_vm_address_t isa = plcrash_async_objc_isa_pointer((pl_vm_address_t) image->byteorder->swap(classPtr->isa));
       class_t *metaclass = (class_t *) plcrash_async_mobject_remap_address(&objcContext->objcDataMobj, isa, 0, sizeof(*metaclass));
-      //        PLCR_LOG("137 pl_async_objc_parse_from_data_section Read an architecture-appropriate class structure for the metaclass");
+              PLCR_LOG("137 pl_async_objc_parse_from_data_section Read an architecture-appropriate class structure for the metaclass");
       if (metaclass == NULL) {
-        //            PLCR_LOG("137 pl_async_objc_parse_from_data_section metaclass is Null");
+                    PLCR_LOG("137 pl_async_objc_parse_from_data_section metaclass is Null");
         metaclass = (class_t *) plcrash_async_mobject_remap_address(&objcContext->dataMobj, isa, 0, sizeof(*metaclass));
       }
       if (metaclass == NULL) {
-        //            PLCR_LOG("137 pl_async_objc_parse_from_data_section metaclass is Null, invalid data");
+                    PLCR_LOG("137 pl_async_objc_parse_from_data_section metaclass is Null, invalid data");
         PLCF_DEBUG("plcrash_async_mobject_remap_address in __objc_data and __data for pointer 0x%llx returned NULL", (long long)isa);
         return PLCRASH_EINVALID_DATA;
       }
       
       /* Parse the metaclass. */
       err = pl_async_objc_parse_objc2_class_methods<class_t, class_ro_t, class_rw_t, machine_ptr_t>(image, objcContext, metaclass, true, callback, ctx);
-      //        PLCR_LOG("137 pl_async_objc_parse_from_data_section parse the metaclass, %d", err);
+              PLCR_LOG("137 pl_async_objc_parse_from_data_section parse the metaclass, %d", err);
       if (err != PLCRASH_ESUCCESS) {
-        //            PLCR_LOG("137 pl_async_objc_parse_from_data_section parse the metaclass error");
+                    PLCR_LOG("137 pl_async_objc_parse_from_data_section parse the metaclass error");
         PLCF_DEBUG("pl_async_objc_parse_objc2_class_methods error %d while parsing metaclass", err);
         return err;
       }
