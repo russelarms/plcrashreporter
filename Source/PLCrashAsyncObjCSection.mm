@@ -936,6 +936,7 @@ static plcrash_error_t pl_async_objc_parse_objc2_class_methods (plcrash_async_ma
     plcrash_error_t err;
     
     /* Parse the class */
+  
     if ((err = pl_async_objc_parse_objc2_class<class_t, class_ro_t, class_rw_t, machine_ptr_t>(image, objc_cache, cls, &class_name, &cls_data_ro)) != PLCRASH_ESUCCESS)
         return err;
 
@@ -978,10 +979,13 @@ static plcrash_error_t pl_async_objc_parse_objc2_category_methods (plcrash_async
     
     /* Grab the class reference and parse the class. We try to simply remap the pointer, but if that fails, we perform a more
      * expensive read. */
+    PLCR_LOG("138 pl_async_objc_parse_objc2_category_methods 0");
     pl_vm_address_t ptr = (pl_vm_address_t) image->byteorder->swap(category->cls);
+    PLCR_LOG("138 pl_async_objc_parse_objc2_category_methods 1");
     class_t *classPtr = (class_t *) plcrash_async_mobject_remap_address(&objc_cache->objcDataMobj, ptr, 0, sizeof(*classPtr));
     class_t class_data;
 
+  PLCR_LOG("138 pl_async_objc_parse_objc2_category_methods 2");
     if (classPtr == NULL) {
         if ((err = plcrash_async_task_memcpy(image->task, ptr, 0, &class_data, sizeof(class_data))) != PLCRASH_ESUCCESS) {
             PLCF_DEBUG("plcrash_async_task_memcpy() for pointer 0x%llx returned NULL", (long long)ptr);
@@ -990,27 +994,30 @@ static plcrash_error_t pl_async_objc_parse_objc2_category_methods (plcrash_async
         
         classPtr = &class_data;
     }
+    PLCR_LOG("138 pl_async_objc_parse_objc2_category_methods 3");
     
     if ((err = pl_async_objc_parse_objc2_class<class_t, class_ro_t, class_rw_t, machine_ptr_t>(image, objc_cache, classPtr, &class_name, &cls_data_ro)) != PLCRASH_ESUCCESS)
         return err;
     
     /* Fetch and parse the instance and class method lists. The method list will be NULL if no methods are defined for the category; in that case, we simply skip the category. */
+    PLCR_LOG("138 pl_async_objc_parse_objc2_category_methods 4");
     pl_vm_address_t methods_ptr = (pl_vm_address_t) image->byteorder->swap(category->instanceMethods);
     if (methods_ptr != 0) {
         if ((err = pl_async_objc_parse_objc2_method_list(image, objc_cache, &class_name, false, methods_ptr, callback, ctx)) != PLCRASH_ESUCCESS)
             goto cleanup;
     }
-    
+    PLCR_LOG("138 pl_async_objc_parse_objc2_category_methods 5");
     methods_ptr = (pl_vm_address_t) image->byteorder->swap(category->classMethods);
     if (methods_ptr != 0) {
         if ((err = pl_async_objc_parse_objc2_method_list(image, objc_cache, &class_name, true, methods_ptr, callback, ctx)) != PLCRASH_ESUCCESS)
             goto cleanup;
     }
-    
+    PLCR_LOG("138 pl_async_objc_parse_objc2_category_methods 6");
     err = PLCRASH_ESUCCESS;
 
 cleanup:
     /* Clean up */
+    PLCR_LOG("138 pl_async_objc_parse_objc2_category_methods clean up");
     plcrash_async_macho_string_free(&class_name);
     return err;
 }
@@ -1074,18 +1081,23 @@ static plcrash_error_t pl_async_objc_parse_from_data_section (plcrash_async_mach
       class_t *classPtr = (class_t *) plcrash_async_mobject_remap_address(&objcContext->objcDataMobj, ptr, 0, sizeof(*classPtr));
       PLCR_LOG("137 pl_async_objc_parse_from_data_section Read the class structure2");
       if (classPtr == NULL) {
-                    PLCR_LOG("137 pl_async_objc_parse_from_data_section class ptr is NULL");
+        PLCR_LOG("137 pl_async_objc_parse_from_data_section class ptr is NULL");
         classPtr = (class_t *) plcrash_async_mobject_remap_address(&objcContext->dataMobj, ptr, 0, sizeof(*classPtr));
+      } else {
+        PLCR_LOG("137 pl_async_objc_parse_from_data_section class ptr is not NULL");
       }
       if (classPtr == NULL) {
-                  PLCR_LOG("137 pl_async_objc_parse_from_data_section class ptr is NULL2");
+        PLCR_LOG("137 pl_async_objc_parse_from_data_section class ptr is NULL2");
         PLCF_DEBUG("plcrash_async_mobject_remap_address in __objc_data and __data for pointer 0x%llx returned NULL", (long long)ptr);
         return PLCRASH_EINVALID_DATA;
+      } else {
+        PLCR_LOG("137 pl_async_objc_parse_from_data_section class ptr is not NULL2");
       }
       
+      PLCR_LOG("137 pl_async_objc_parse_from_data_section before parse the class");
       /* Parse the class. */
       err = pl_async_objc_parse_objc2_class_methods<class_t, class_ro_t, class_rw_t, machine_ptr_t>(image, objcContext, classPtr, false, callback, ctx);
-              PLCR_LOG("137 pl_async_objc_parse_from_data_section parse the class, %d", err);
+      PLCR_LOG("137 pl_async_objc_parse_from_data_section parse the class, %d", err);
       if (err != PLCRASH_ESUCCESS) {
         /* Skip unrealized classes; they'll never appear in a live backtrace. */
                     PLCR_LOG("137 pl_async_objc_parse_from_data_section skip unrealized classes");
