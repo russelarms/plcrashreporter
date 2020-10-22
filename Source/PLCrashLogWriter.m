@@ -303,6 +303,7 @@ plcrash_error_t plcrash_log_writer_init (plcrash_log_writer_t *writer,
 
     /* Initialize configuration */
     writer->symbol_strategy = symbol_strategy;
+    PLCR_LOG("symbol strategy is %d", symbol_strategy);
 
     /* Default to false */
     writer->report_info.user_requested = user_requested;
@@ -882,6 +883,7 @@ static size_t plcrash_writer_write_thread_frame (plcrash_async_file_t *file, plc
     plcrash_async_image_t *image = plcrash_async_image_containing_address(image_list, (pl_vm_address_t) pcval);
     
     if (image != NULL && writer->symbol_strategy != PLCRASH_ASYNC_SYMBOL_STRATEGY_NONE) {
+        PLCR_LOG("symbol strategy is not NONE");
         struct pl_symbol_cb_ctx ctx;
         plcrash_error_t ret;
         
@@ -889,18 +891,22 @@ static size_t plcrash_writer_write_thread_frame (plcrash_async_file_t *file, plc
          * our callback is called and PLCRASH_ESUCCESS is returned. */
         ctx.file = NULL;
         ctx.msgsize = 0x0;
+        PLCR_LOG("plcrash_async_find_symbol");
         ret = plcrash_async_find_symbol(&image->macho_image, writer->symbol_strategy, findContext, (pl_vm_address_t) pcval, plcrash_writer_write_thread_frame_symbol_cb, &ctx);
+      PLCR_LOG("plcrash_async_find_symbol 2, %d", ret);
         if (ret == PLCRASH_ESUCCESS) {
             /* Write the header and message */
             rv += plcrash_writer_pack(file, PLCRASH_PROTO_THREAD_FRAME_SYMBOL_ID, PLPROTOBUF_C_TYPE_MESSAGE, &ctx.msgsize);
 
             ctx.file = file;
+            PLCR_LOG("plcrash_async_find_symbol 3");
             ret = plcrash_async_find_symbol(&image->macho_image, writer->symbol_strategy, findContext, (pl_vm_address_t) pcval, plcrash_writer_write_thread_frame_symbol_cb, &ctx);
+            PLCR_LOG("plcrash_async_find_symbol 4, %d", ret);
             if (ret == PLCRASH_ESUCCESS) {
                 rv += ctx.msgsize;
             } else {
                 /* This should not happen, but it would be very confusing if it did and nothing was logged. */
-                PLCF_DEBUG("Fetching the symbol unexpectedly failed during the second call");
+              PLCR_LOG("Fetching the symbol unexpectedly failed during the second call");
             }
         }
     }

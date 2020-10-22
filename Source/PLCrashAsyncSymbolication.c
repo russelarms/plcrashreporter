@@ -27,6 +27,7 @@
  */
 
 #include "PLCrashAsyncSymbolication.h"
+#import "PLCrashMacros.h"
 
 #include <inttypes.h>
 
@@ -92,34 +93,45 @@ plcrash_error_t plcrash_async_find_symbol (plcrash_async_macho_t *image,
                                            plcrash_async_found_symbol_cb callback,
                                            void *ctx)
 {
+    PLCR_LOG("inside plcrash_async_find_symbol 0");
     struct symbol_lookup_ctx lookup_ctx;
     plcrash_error_t machoErr = PLCRASH_ENOTFOUND;
     plcrash_error_t objcErr = PLCRASH_ENOTFOUND;
 
     lookup_ctx.symbol_address = 0x0;
     lookup_ctx.found = false;
+  
+    PLCR_LOG("inside plcrash_async_find_symbol 1");
 
     /* Perform lookups; our callbacks will only update the lookup_ctx if they find a better match than the
      * previously run callbacks */
-    if (strategy & PLCRASH_ASYNC_SYMBOL_STRATEGY_SYMBOL_TABLE)
-        machoErr = plcrash_async_macho_find_symbol_by_pc(image, pc, macho_symbol_callback, &lookup_ctx);
+  if (strategy & PLCRASH_ASYNC_SYMBOL_STRATEGY_SYMBOL_TABLE){
+    PLCR_LOG("&PLCRASH_ASYNC_SYMBOL_STRATEGY_SYMBOL_TABLE");
+    machoErr = plcrash_async_macho_find_symbol_by_pc(image, pc, macho_symbol_callback, &lookup_ctx);
+  }
     
-    if (strategy & PLCRASH_ASYNC_SYMBOL_STRATEGY_OBJC)
-        objcErr = plcrash_async_objc_find_method(image, &cache->objc_cache, pc, objc_symbol_callback, &lookup_ctx);
-
+  if (strategy & PLCRASH_ASYNC_SYMBOL_STRATEGY_OBJC){
+    PLCR_LOG("&PLCRASH_ASYNC_SYMBOL_STRATEGY_OBJC");
+    objcErr = plcrash_async_objc_find_method(image, &cache->objc_cache, pc, objc_symbol_callback, &lookup_ctx);
+  }
+  
     if (machoErr != PLCRASH_ESUCCESS && objcErr != PLCRASH_ESUCCESS) {
-        PLCF_DEBUG("Could not find symbol for pc 0x%" PRIx64 " in %s", (uint64_t) pc, PLCF_DEBUG_IMAGE_NAME(image));
+      PLCR_LOG("&machoErr != PLCRASH_ESUCCESS && objcErr != PLCRASH_ESUCCESS");
+      PLCR_LOG("Could not find symbol for pc 0x%" PRIx64 " in %s", (uint64_t) pc, PLCF_DEBUG_IMAGE_NAME(image));
+      PLCF_DEBUG("Could not find symbol for pc 0x%" PRIx64 " in %s", (uint64_t) pc, PLCF_DEBUG_IMAGE_NAME(image));
         return PLCRASH_ENOTFOUND;
     }
 
     /* Even if a symbol was found above, our callbacks could have errored out, in which case they would have
      * logged a debug message, not set 'found' */
     if (!lookup_ctx.found) {
+      PLCR_LOG("Unexpected error occured in symbol lookup callbacks for pc %" PRIx64 " in %s", (uint64_t) pc, PLCF_DEBUG_IMAGE_NAME(image));
         PLCF_DEBUG("Unexpected error occured in symbol lookup callbacks for pc %" PRIx64 " in %s", (uint64_t) pc, PLCF_DEBUG_IMAGE_NAME(image));
         return PLCRASH_EINTERNAL;
     }
 
     callback(lookup_ctx.symbol_address, lookup_ctx.buffer, ctx);
+    PLCR_LOG("inside plcrash_async_find_symbol ESUCCESS");
     return PLCRASH_ESUCCESS;
 }
 

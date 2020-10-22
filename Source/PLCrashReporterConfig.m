@@ -27,6 +27,7 @@
  */
 
 #import "PLCrashReporterConfig.h"
+#import "PLCrashMacros.h"
 
 /**
  * Crash Reporter Configuration.
@@ -77,6 +78,7 @@
                      symbolicationStrategy: (PLCrashReporterSymbolicationStrategy) symbolicationStrategy
                shouldRegisterUncaughtExceptionHandler: (BOOL) shouldRegisterUncaughtExceptionHandler
 {
+  PLCR_LOG("Hello, hello");
   if ((self = [super init]) == nil)
     return nil;
   
