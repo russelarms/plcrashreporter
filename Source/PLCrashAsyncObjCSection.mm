@@ -1070,8 +1070,9 @@ static plcrash_error_t pl_async_objc_parse_from_data_section (plcrash_async_mach
       PLCR_LOG("137 pl_async_objc_parse_from_data_section class iteration, %d", i);
       /* Read the class structure */
       pl_vm_address_t ptr = (pl_vm_address_t) classPtrs[i];
-      
+      PLCR_LOG("137 pl_async_objc_parse_from_data_section Read the class structure");
       class_t *classPtr = (class_t *) plcrash_async_mobject_remap_address(&objcContext->objcDataMobj, ptr, 0, sizeof(*classPtr));
+      PLCR_LOG("137 pl_async_objc_parse_from_data_section Read the class structure2");
       if (classPtr == NULL) {
                     PLCR_LOG("137 pl_async_objc_parse_from_data_section class ptr is NULL");
         classPtr = (class_t *) plcrash_async_mobject_remap_address(&objcContext->dataMobj, ptr, 0, sizeof(*classPtr));
